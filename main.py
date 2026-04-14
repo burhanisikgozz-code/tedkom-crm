@@ -1,21 +1,27 @@
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
 import psycopg2
+import os
 
 app = FastAPI()
 
-conn = psycopg2.connect("postgresql://tedkom_db_user:H2QZKZMYawJpi3MH3jFS9tzpyWjSIwLy@dpg-d7f9jcd7vvec73a8a0v0-a/tedkom_db")
+# Render environment variable
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 
+# tablolar
 cur.execute("CREATE TABLE IF NOT EXISTS customers (id SERIAL PRIMARY KEY, name TEXT)")
 cur.execute("CREATE TABLE IF NOT EXISTS offers (id SERIAL PRIMARY KEY, name TEXT)")
 conn.commit()
 
+
 def render_page():
-    cur.execute("SELECT name FROM customers")
+    cur.execute("SELECT name FROM customers ORDER BY id DESC")
     customers = "".join([f"<li>{c[0]}</li>" for c in cur.fetchall()])
 
-    cur.execute("SELECT name FROM offers")
+    cur.execute("SELECT name FROM offers ORDER BY id DESC")
     offers = "".join([f"<li>{o[0]}</li>" for o in cur.fetchall()])
 
     return f"""
@@ -46,15 +52,18 @@ def render_page():
     </html>
     """
 
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return render_page()
+
 
 @app.post("/add_customer", response_class=HTMLResponse)
 def add_customer(name: str = Form(...)):
     cur.execute("INSERT INTO customers (name) VALUES (%s)", (name,))
     conn.commit()
     return render_page()
+
 
 @app.post("/add_offer", response_class=HTMLResponse)
 def add_offer(name: str = Form(...)):
