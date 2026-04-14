@@ -1,72 +1,45 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+import psycopg2
 
 app = FastAPI()
+
+conn = psycopg2.connect("postgresql://tedkom_db_user:H2QZKZMYawJpi3MH3jFS9tzpyWjSIwLy@dpg-d7f9jcd7vvec73a8a0v0-a/tedkom_db")
+cur = conn.cursor()
+
+cur.execute("CREATE TABLE IF NOT EXISTS customers (id SERIAL PRIMARY KEY, name TEXT)")
+cur.execute("CREATE TABLE IF NOT EXISTS offers (id SERIAL PRIMARY KEY, name TEXT)")
+conn.commit()
 
 html = """
 <!DOCTYPE html>
 <html>
 <head>
 <title>TEDKOM CRM</title>
-<style>
-body { font-family: Arial; background:#0f172a; color:white; padding:20px;}
-.card { background:#1e293b; padding:20px; margin:10px; border-radius:10px;}
-input { padding:8px; margin:5px;}
-button { padding:8px; background:#3b82f6; color:white; border:none;}
-</style>
 </head>
-<body>
+<body style='background:#0f172a;color:white;padding:20px;font-family:Arial'>
 
 <h1>TEDKOM CRM</h1>
 
-<div class="card">
 <h2>Müşteri</h2>
-<input id="customer"/>
-<button onclick="addCustomer()">Ekle</button>
-<ul id="customers"></ul>
-</div>
+<form method="post" action="/add_customer">
+<input name="name"/>
+<button>Ekle</button>
+</form>
 
-<div class="card">
+<ul>
+%s
+</ul>
+
 <h2>Teklif</h2>
-<input id="offer"/>
-<button onclick="addOffer()">Ekle</button>
-<ul id="offers"></ul>
-</div>
+<form method="post" action="/add_offer">
+<input name="name"/>
+<button>Ekle</button>
+</form>
 
-<div class="card">
-<h2>Kasa (USD)</h2>
-<p id="balance">0</p>
-<button onclick="addMoney()">+100$</button>
-</div>
-
-<script>
-let customers=[]
-let offers=[]
-let balance=0
-
-function addCustomer(){
- let v=document.getElementById("customer").value
- customers.push(v)
- render()
-}
-
-function addOffer(){
- let v=document.getElementById("offer").value
- offers.push(v)
- render()
-}
-
-function addMoney(){
- balance+=100
- render()
-}
-
-function render(){
- document.getElementById("customers").innerHTML=customers.map(c=>"<li>"+c+"</li>").join("")
- document.getElementById("offers").innerHTML=offers.map(o=>"<li>"+o+"</li>").join("")
- document.getElementById("balance").innerText=balance+" $"
-}
-</script>
+<ul>
+%s
+</ul>
 
 </body>
 </html>
@@ -74,4 +47,24 @@ function render(){
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return html
+    cur.execute("SELECT name FROM customers")
+    customers = "".join([f"<li>{c[0]}</li>" for c in cur.fetchall()])
+
+    cur.execute("SELECT name FROM offers")
+    offers = "".join([f"<li>{o[0]}</li>" for o in cur.fetchall()])
+
+    return html % (customers, offers)
+
+
+@app.post("/add_customer")
+def add_customer(name: str):
+    cur.execute("INSERT INTO customers (name) VALUES (%s)", (name,))
+    conn.commit()
+    return {"ok": True}
+
+
+@app.post("/add_offer")
+def add_offer(name: str):
+    cur.execute("INSERT INTO offers (name) VALUES (%s)", (name,))
+    conn.commit()
+    return {"ok": True}
