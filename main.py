@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
 import psycopg2
 
@@ -11,60 +11,53 @@ cur.execute("CREATE TABLE IF NOT EXISTS customers (id SERIAL PRIMARY KEY, name T
 cur.execute("CREATE TABLE IF NOT EXISTS offers (id SERIAL PRIMARY KEY, name TEXT)")
 conn.commit()
 
-html = """
-<!DOCTYPE html>
-<html>
-<head>
-<title>TEDKOM CRM</title>
-</head>
-<body style='background:#0f172a;color:white;padding:20px;font-family:Arial'>
-
-<h1>TEDKOM CRM</h1>
-
-<h2>Müşteri</h2>
-<form method="post" action="/add_customer">
-<input name="name"/>
-<button>Ekle</button>
-</form>
-
-<ul>
-%s
-</ul>
-
-<h2>Teklif</h2>
-<form method="post" action="/add_offer">
-<input name="name"/>
-<button>Ekle</button>
-</form>
-
-<ul>
-%s
-</ul>
-
-</body>
-</html>
-"""
-
-@app.get("/", response_class=HTMLResponse)
-def home():
+def render_page():
     cur.execute("SELECT name FROM customers")
     customers = "".join([f"<li>{c[0]}</li>" for c in cur.fetchall()])
 
     cur.execute("SELECT name FROM offers")
     offers = "".join([f"<li>{o[0]}</li>" for o in cur.fetchall()])
 
-    return html % (customers, offers)
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>TEDKOM CRM</title>
+    </head>
+    <body style='background:#0f172a;color:white;padding:20px;font-family:Arial'>
 
+    <h1>TEDKOM CRM</h1>
 
-@app.post("/add_customer")
-def add_customer(name: str):
+    <h2>Müşteri</h2>
+    <form method="post" action="/add_customer">
+    <input name="name" placeholder="Müşteri adı"/>
+    <button>Ekle</button>
+    </form>
+    <ul>{customers}</ul>
+
+    <h2>Teklif</h2>
+    <form method="post" action="/add_offer">
+    <input name="name" placeholder="Teklif"/>
+    <button>Ekle</button>
+    </form>
+    <ul>{offers}</ul>
+
+    </body>
+    </html>
+    """
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return render_page()
+
+@app.post("/add_customer", response_class=HTMLResponse)
+def add_customer(name: str = Form(...)):
     cur.execute("INSERT INTO customers (name) VALUES (%s)", (name,))
     conn.commit()
-    return {"ok": True}
+    return render_page()
 
-
-@app.post("/add_offer")
-def add_offer(name: str):
+@app.post("/add_offer", response_class=HTMLResponse)
+def add_offer(name: str = Form(...)):
     cur.execute("INSERT INTO offers (name) VALUES (%s)", (name,))
     conn.commit()
-    return {"ok": True}
+    return render_page()
