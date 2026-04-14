@@ -8,7 +8,7 @@ app = FastAPI()
 # Render environment variable
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-conn = psycopg2.connect(DATABASE_URL)
+conn = psycopg2.connect(DATABASE_URL.replace("postgres://", "postgresql://"))
 cur = conn.cursor()
 
 # tablolar
